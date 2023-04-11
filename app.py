@@ -1,5 +1,5 @@
 import json
-from flask import Flask,request, jsonify, send_file
+from flask import Flask, Response, request, jsonify, send_file
 import pandas as pd
 import numpy as np
 import io
@@ -7,6 +7,7 @@ import io
 from flask_cors import CORS
 
 
+#*****************************************************************************************
 def download_excel():
     # cria um dataframe com alguns dados
     df = pd.DataFrame({'coluna_1': [1, 2, 3],
@@ -20,13 +21,14 @@ def download_excel():
     # envia o arquivo Excel para o frontend
     return send_file('dados.xlsx', as_attachment=True)
 
+#*****************************************************************************************
 def readExcelFile(filename):
-    df   = pd.read_excel(filename)
+    df = pd.read_excel(filename)
     df.fillna(0, inplace=True)
 
     return df
 
-
+#*****************************************************************************************
 def createMatrixDataframe(dataframe):
     df_matrix = pd.DataFrame(columns=dataframe.columns,
                              index=dataframe.columns)
@@ -35,7 +37,7 @@ def createMatrixDataframe(dataframe):
 
     return df_matrix
 
-
+#*****************************************************************************************
 def populateMatrix(df1, matrixDataframe):
     for index, row in df1.iterrows():
         #print("Row:", index)
@@ -45,9 +47,12 @@ def populateMatrix(df1, matrixDataframe):
             #print("Columns:", lista)
             for i in lista:
                 for j in lista:
-                    matrixDataframe.loc[i, j] += 1
+                    try:
+                        matrixDataframe.loc[i, j] += 1
+                    except:
+                        continue
 
-
+#*****************************************************************************************
 def remove_mirror_values(matrix):
     import numpy as np
 
@@ -71,13 +76,13 @@ def remove_mirror_values(matrix):
 
     for index, row in result_df.iterrows():
         labelA = columns_list[int(row['A'])]
-        labelB = columns_list[int(row['B'])]       
+        labelB = columns_list[int(row['B'])]
         result_df.at[index, 'A'] = labelA
         result_df.at[index, 'B'] = labelB
 
     return result_df
 
-
+#*****************************************************************************************
 def exportAsExcel(dataframe):
     import datetime
 
@@ -88,53 +93,102 @@ def exportAsExcel(dataframe):
     agora_str = agora.strftime("%d%m%Y_%H%M")
 
     # Imprima a string formatada
-    #print(agora_str)
+    # print(agora_str)
 
     dataframe.to_excel('results/result_'+agora_str+'.xlsx')
 
+#*****************************************************************************************
+def donwloadExcelFile(dataframe):
+    excel_file = io.BytesIO()
+    excel_writer = pd.ExcelWriter(excel_file, engine='xlsxwriter')
+    dataframe.to_excel(excel_writer, index=False, sheet_name='Sheet1')
+    excel_writer.book.close()
+    excel_file.seek(0)
 
+    # Return the Excel file as a byte stream
+    print("send reponse")
+
+    return excel_file
+
+#*****************************************************************************************
 app = Flask(__name__)
-CORS(app, resources={r"/*": {"origins": "*"}},methods={"POST","GET"} , supports_credentials=True)
+CORS(app, resources={r"/*": {"origins": "*"}},
+     methods={"POST", "GET"}, supports_credentials=True)
 
-
+#***************************** ROUTES *****************************************************
 @app.route("/")
 def hello():
     return "Hello, World!"
 
-@app.route("/teste", methods=['POST','GET'])
+
+@app.route("/teste", methods=['POST', 'GET'])
 def teste():
     return jsonify("Hello TESTE")
 
 
-@app.route("/iniciaupload", methods=['POST', 'GET'])
-def upload():
+@app.route("/api/download", methods=['POST', 'GET'])
+def download():
+   
     print("inciando o processo!!")
-    
     # print("Carregando dados...")
     json_data = request.get_json()
-    #print(json_data)
+    # print(json_data)
     df = pd.DataFrame(json_data, columns=json_data[0])
     df = df.drop(df.index[0])
-    
+    #print(df)
+    #df.to_excel("originaldf.xlsx")
+    df.drop_duplicates(inplace=True)
     print("Gerando matriz...")
-    matrix_df= createMatrixDataframe(df)
+    matrix_df = createMatrixDataframe(df)
+    #print(matrix_df)
+    #matrix_df.to_excel("matriz.xlsx")
+    
+    print("Populate matrix")    
     populateMatrix(df, matrix_df)
+    
+    print("Remove Mirror")
     final_df = remove_mirror_values(matrix_df)
-    
-    print("exportando os dados...")
-    output = pd.ExcelWriter('dados.xlsx')
-    final_df.to_excel(output)
-    output.close()
+    print(final_df)
 
-    # envia o arquivo Excel para o frontend
-    data = {'name': 'John', 'age': 30}
-    return jsonify(data)
-
-        #print(final_df)
-    
-
-
+    print("enviando os dados...")
+    # Salvar o DataFrame em um arquivo Excel
+    writer = pd.ExcelWriter('dados.xlsx', engine='xlsxwriter')
+    final_df.to_excel(writer, sheet_name='Sheet1', index=False)
+    writer.close()
+    return send_file('dados.xlsx', as_attachment=True)
+    #return jsonify("teste")
 
 
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=8080)
+
+
+
+# @app.route("/iniciaupload", methods=['POST', 'GET'])
+# def upload():
+#     print("inciando o processo!!")
+
+#     # print("Carregando dados...")
+#     json_data = request.get_json()
+#     # print(json_data)
+#     df = pd.DataFrame(json_data, columns=json_data[0])
+#     df = df.drop(df.index[0])
+
+#     print("Gerando matriz...")
+#     matrix_df = createMatrixDataframe(df)
+#     populateMatrix(df, matrix_df)
+#     final_df = remove_mirror_values(matrix_df)
+
+#     print("exportando os dados...")
+#     try:
+#         excel_file = donwloadExcelFile(final_df)
+#         return Response(excel_file.read(), mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", headers={"Content-disposition": "attachment; filename=myfile.xlsx"})
+#     except:
+#         print('Erro ao exportar os dados')
+#         return jsonify('Error')
+
+#     # envia o arquivo Excel para o frontend
+#     # return send_file('dados.xlsx', as_attachment=True, mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+#     # print(final_df)
+
+
