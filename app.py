@@ -1,35 +1,18 @@
-import json
-from flask import Flask, Response, request, jsonify, send_file
+from flask import Flask, request, jsonify, send_file
 import pandas as pd
 import numpy as np
-import io
 
 from flask_cors import CORS
 
 
 #*****************************************************************************************
-def download_excel():
-    # cria um dataframe com alguns dados
-    df = pd.DataFrame({'coluna_1': [1, 2, 3],
-                       'coluna_2': ['a', 'b', 'c']})
-
-    # cria um arquivo Excel a partir do dataframe
-    output = pd.ExcelWriter('dados.xlsx')
-    df.to_excel(output)
-    output.save()
-
-    # envia o arquivo Excel para o frontend
-    return send_file('dados.xlsx', as_attachment=True)
-
-#*****************************************************************************************
-def readExcelFile(filename):
-    df = pd.read_excel(filename)
-    df.fillna(0, inplace=True)
-
-    return df
-
-#*****************************************************************************************
 def createMatrixDataframe(dataframe):
+    ''''
+    1. Cria um dataframe do tipo matriz onde as linhas e as colunas são as columas do dataframe
+    informado como argumento da função;
+    
+    2. Preenche todos os valores de linhas e colunas com 0;
+    '''
     df_matrix = pd.DataFrame(columns=dataframe.columns,
                              index=dataframe.columns)
 
@@ -39,6 +22,18 @@ def createMatrixDataframe(dataframe):
 
 #*****************************************************************************************
 def populateMatrix(df1, matrixDataframe):
+    '''
+    1. Preenche a matriz com os valores correlacionados em df1;
+    
+    2. A função começa com um loop for que itera sobre cada linha do DataFrame df1.
+    
+    3. Para cada linha, ele verifica se a linha contém pelo menos um valor igual a 1 usando o
+        método any() do pandas.
+        
+    4. Se a linha contém pelo menos um valor igual a 1, ele cria uma lista chamada lista contendo
+        as colunas que possuem valor 1 na linha atual.
+
+    '''
     for index, row in df1.iterrows():
         #print("Row:", index)
         if (row == 1).any():
@@ -54,8 +49,30 @@ def populateMatrix(df1, matrixDataframe):
 
 #*****************************************************************************************
 def remove_mirror_values(matrix):
-    import numpy as np
+    '''
+    1. O código define uma função chamada remove_mirror_values que recebe um objeto matrix e retorna
+        um objeto DataFrame com os valores abaixo da diagonal principal da matriz original, excluindo
+        valores espelhados.
 
+    2. A primeira linha de código importa a biblioteca NumPy. Em seguida, ele usa a função np.tril do
+        NumPy para obter somente os valores à esquerda da diagonal principal da matriz, com um deslocamento
+        k=-1. Os valores à direita da diagonal principal são espelhados, então estamos ignorando esses valores.
+
+    3. A partir do array de valores à esquerda da diagonal principal, o código cria um novo DataFrame chamado 
+        left_values_df e o converte em um DataFrame de pares com a função stack(). Em seguida, ele renomeia as colunas
+        do DataFrame resultante para 'A', 'B' e 'TOTAL'.
+
+    4. O próximo passo é filtrar os valores do DataFrame resultante, removendo quaisquer valores com um total igual a zero
+        ou onde o valor 'A' é igual ao valor 'B'.
+
+    5. O código então converte o valor 'A' de cada linha em um rótulo de coluna, usando a lista de colunas da matriz original.
+
+    6. Por fim, a função retorna o DataFrame resultante com os valores abaixo da diagonal principal da matriz original,
+        sem valores espelhados.
+
+    7. Em resumo, essa função remove os valores espelhados da matriz e retorna uma lista de pares de colunas com seus 
+        respectivos valores abaixo da diagonal principal.
+    '''
     # Obtenha somente os valores à esquerda da diagonal principal
     left_values = np.tril(matrix, k=-1)
 
@@ -83,34 +100,6 @@ def remove_mirror_values(matrix):
     return result_df
 
 #*****************************************************************************************
-def exportAsExcel(dataframe):
-    import datetime
-
-    # Obtenha a data e hora atual
-    agora = datetime.datetime.now()
-
-    # Formate a data e hora como uma string
-    agora_str = agora.strftime("%d%m%Y_%H%M")
-
-    # Imprima a string formatada
-    # print(agora_str)
-
-    dataframe.to_excel('results/result_'+agora_str+'.xlsx')
-
-#*****************************************************************************************
-def donwloadExcelFile(dataframe):
-    excel_file = io.BytesIO()
-    excel_writer = pd.ExcelWriter(excel_file, engine='xlsxwriter')
-    dataframe.to_excel(excel_writer, index=False, sheet_name='Sheet1')
-    excel_writer.book.close()
-    excel_file.seek(0)
-
-    # Return the Excel file as a byte stream
-    print("send reponse")
-
-    return excel_file
-
-#*****************************************************************************************
 app = Flask(__name__)
 CORS(app, resources={r"/*": {"origins": "*"}},
      methods={"POST", "GET"}, supports_credentials=True)
@@ -128,7 +117,29 @@ def teste():
 
 @app.route("/api/download", methods=['POST', 'GET'])
 def download():
-   
+    '''
+    1. O código define uma rota Flask chamada download que é acessada por um método HTTP GET ou POST.
+        Essa rota recebe um JSON de dados na requisição e processa esses dados para gerar um arquivo Excel
+        com os resultados.
+
+    2. A primeira linha da função exibe uma mensagem "inciando o processo!!" na saída padrão.
+
+    3. Em seguida, o código obtém o JSON de dados da solicitação HTTP usando a função request.get_json().
+        Ele cria um DataFrame Pandas a partir dos dados do JSON e exclui a primeira linha do DataFrame 
+        (que contém os nomes das colunas).
+
+    4. A função então chama a função createMatrixDataframe para criar uma nova matriz DataFrame com base no
+        DataFrame original.
+
+    5. Em seguida, ele chama a função populateMatrix para preencher a matriz com valores apropriados com base no
+        DataFrame original.
+
+    6. Depois disso, ele chama a função remove_mirror_values para remover valores espelhados da matriz e retornar
+        um DataFrame final com as informações necessárias.
+
+    7. O código então cria um arquivo Excel com o DataFrame final usando a biblioteca xlsxwriter.
+        O arquivo Excel é chamado de 'dados.xlsx' e é enviado para o usuário como um anexo por meio da função send_file().
+    '''
     print("inciando o processo!!")
     # print("Carregando dados...")
     json_data = request.get_json()
@@ -161,34 +172,4 @@ def download():
 
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=8080)
-
-
-
-# @app.route("/iniciaupload", methods=['POST', 'GET'])
-# def upload():
-#     print("inciando o processo!!")
-
-#     # print("Carregando dados...")
-#     json_data = request.get_json()
-#     # print(json_data)
-#     df = pd.DataFrame(json_data, columns=json_data[0])
-#     df = df.drop(df.index[0])
-
-#     print("Gerando matriz...")
-#     matrix_df = createMatrixDataframe(df)
-#     populateMatrix(df, matrix_df)
-#     final_df = remove_mirror_values(matrix_df)
-
-#     print("exportando os dados...")
-#     try:
-#         excel_file = donwloadExcelFile(final_df)
-#         return Response(excel_file.read(), mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", headers={"Content-disposition": "attachment; filename=myfile.xlsx"})
-#     except:
-#         print('Erro ao exportar os dados')
-#         return jsonify('Error')
-
-#     # envia o arquivo Excel para o frontend
-#     # return send_file('dados.xlsx', as_attachment=True, mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
-#     # print(final_df)
-
 
