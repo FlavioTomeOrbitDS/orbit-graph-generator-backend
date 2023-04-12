@@ -1,4 +1,4 @@
-# Orbit Graph Data Generator - Back end
+# Orbit Graph Data Generator - Backend
 
 <br>
 
