@@ -5,35 +5,32 @@ import numpy as np
 from flask_cors import CORS
 
 
-#*****************************************************************************************
-def createMatrixDataframe(dataframe):
-    ''''
-    1. Cria um dataframe do tipo matriz onde as linhas e as colunas são as columas do dataframe
-    informado como argumento da função;
+'''The code then uses these functions to read an Excel file, create a matrix DataFrame,
+    populate the matrix DataFrame with mentions, remove mirror values from the matrix,
+    and save the final DataFrame to an Excel file.
+
+1. readExcelFile(filename) - reads an Excel file and returns a refactored pandas DataFrame.
+2. createMatrixDataframe(dataframe) - creates an empty pandas DataFrame with column and index labels from a given DataFrame.
+3. populateMatrix(df1, matrixDataframe) - populates a given pandas DataFrame with mentions from another pandas DataFrame.
+'''
+import pandas as pd
+
+def readCsv(filename):
     
-    2. Preenche todos os valores de linhas e colunas com 0;
-    '''
+    df = pd.read_csv(filename,sep=';')
+    df.fillna(0, inplace=True)
+    
+    return df
+
+def createMatrixDataframe(dataframe):
     df_matrix = pd.DataFrame(columns=dataframe.columns,
                              index=dataframe.columns)
 
     df_matrix.fillna(0, inplace=True)
-
     return df_matrix
 
-#*****************************************************************************************
-def populateMatrix(df1, matrixDataframe):
-    '''
-    1. Preenche a matriz com os valores correlacionados em df1;
-    
-    2. A função começa com um loop for que itera sobre cada linha do DataFrame df1.
-    
-    3. Para cada linha, ele verifica se a linha contém pelo menos um valor igual a 1 usando o
-        método any() do pandas.
-        
-    4. Se a linha contém pelo menos um valor igual a 1, ele cria uma lista chamada lista contendo
-        as colunas que possuem valor 1 na linha atual.
 
-    '''
+def populateMatrix(df1, matrixDataframe):
     for index, row in df1.iterrows():
         #print("Row:", index)
         if (row == 1).any():
@@ -42,37 +39,12 @@ def populateMatrix(df1, matrixDataframe):
             #print("Columns:", lista)
             for i in lista:
                 for j in lista:
-                    try:
-                        matrixDataframe.loc[i, j] += 1
-                    except:
-                        continue
+                    matrixDataframe.loc[i, j] += 1
 
-#*****************************************************************************************
+
 def remove_mirror_values(matrix):
-    '''
-    1. O código define uma função chamada remove_mirror_values que recebe um objeto matrix e retorna
-        um objeto DataFrame com os valores abaixo da diagonal principal da matriz original, excluindo
-        valores espelhados.
+    import numpy as np
 
-    2. A primeira linha de código importa a biblioteca NumPy. Em seguida, ele usa a função np.tril do
-        NumPy para obter somente os valores à esquerda da diagonal principal da matriz, com um deslocamento
-        k=-1. Os valores à direita da diagonal principal são espelhados, então estamos ignorando esses valores.
-
-    3. A partir do array de valores à esquerda da diagonal principal, o código cria um novo DataFrame chamado 
-        left_values_df e o converte em um DataFrame de pares com a função stack(). Em seguida, ele renomeia as colunas
-        do DataFrame resultante para 'A', 'B' e 'TOTAL'.
-
-    4. O próximo passo é filtrar os valores do DataFrame resultante, removendo quaisquer valores com um total igual a zero
-        ou onde o valor 'A' é igual ao valor 'B'.
-
-    5. O código então converte o valor 'A' de cada linha em um rótulo de coluna, usando a lista de colunas da matriz original.
-
-    6. Por fim, a função retorna o DataFrame resultante com os valores abaixo da diagonal principal da matriz original,
-        sem valores espelhados.
-
-    7. Em resumo, essa função remove os valores espelhados da matriz e retorna uma lista de pares de colunas com seus 
-        respectivos valores abaixo da diagonal principal.
-    '''
     # Obtenha somente os valores à esquerda da diagonal principal
     left_values = np.tril(matrix, k=-1)
 
@@ -99,12 +71,37 @@ def remove_mirror_values(matrix):
 
     return result_df
 
+def exportAsExcel(dataframe):
+    import datetime
+
+
+    # Obtenha a data e hora atual
+    agora = datetime.datetime.now()
+
+    # Formate a data e hora como uma string
+    agora_str = agora.strftime("%d%m%Y_%H%M")
+
+    # Imprima a string formatada
+    print(agora_str)
+
+    dataframe.to_excel('results/result_'+agora_str+'.xlsx')
+
 #*****************************************************************************************
 app = Flask(__name__)
 CORS(app, resources={r"/*": {"origins": "*"}},
      methods={"POST", "GET"}, supports_credentials=True)
 
 #***************************** ROUTES *****************************************************
+@app.route("/upload", methods=['POST'])
+def upload():
+  
+  file = request.files['file']
+  
+  df= pd.read_csv(file, sep=';')  
+  print(df)
+  return jsonify("arquivo recebido!")
+
+
 @app.route("/")
 def hello():
     return "Hello, World!"
@@ -140,36 +137,57 @@ def download():
     7. O código então cria um arquivo Excel com o DataFrame final usando a biblioteca xlsxwriter.
         O arquivo Excel é chamado de 'dados.xlsx' e é enviado para o usuário como um anexo por meio da função send_file().
     '''
-    print("inciando o processo!!")
-    # print("Carregando dados...")
-    json_data = request.get_json()
-    # print(json_data)
-    df = pd.DataFrame(json_data, columns=json_data[0])
-    df = df.drop(df.index[0])
-    #print(df)
-    #df.to_excel("originaldf.xlsx")
-    df.drop_duplicates(inplace=True)
-    print("Gerando matriz...")
-    matrix_df = createMatrixDataframe(df)
-    #print(matrix_df)
-    #matrix_df.to_excel("matriz.xlsx")
+    # lê os dados
+    file = request.files['file']
+    df = readCsv(file)
+    # cria a matrix
+    print("criando a matriz")
+    matrixDf = createMatrixDataframe(df)
+    # insere os dados de menções na matriz
+    populateMatrix(df, matrixDf)
+    print("gerando os resultados")
+    final_df = remove_mirror_values(matrixDf)
     
-    print("Populate matrix")    
-    populateMatrix(df, matrix_df)
-    
-    print("Remove Mirror")
-    final_df = remove_mirror_values(matrix_df)
-    print(final_df)
-
     print("enviando os dados...")
     # Salvar o DataFrame em um arquivo Excel
     writer = pd.ExcelWriter('dados.xlsx', engine='xlsxwriter')
     final_df.to_excel(writer, sheet_name='Sheet1', index=False)
     writer.close()
     return send_file('dados.xlsx', as_attachment=True)
-    #return jsonify("teste")
-
+    
 
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=8080)
+
+
+# @app.route("/api/generateGraphData", methods=['POST', 'GET'])
+# def generateGraphData():
+#     import itertools
+
+#     file = request.files['file']
+#     df= pd.read_csv(file, sep=';')   
+    
+#     print("gerando resultados")
+#     combs = list(itertools.combinations(df.columns, 2))
+#     df2 = pd.DataFrame(columns=['A', 'B', 'total'])
+
+#     for comb in combs:
+#         # Calculate the total number of rows where both columns have a value of 1
+#         total = df[(df[comb[0]] == 1) & (df[comb[1]] == 1)].shape[0]
+        
+#         # Create a new DataFrame with the results for this combination of columns
+#         new_df = pd.DataFrame({'A': [comb[0]], 'B': [comb[1]], 'total': [total]})
+        
+#         # Append the new DataFrame to the existing DataFrame
+#         df2 = pd.concat([df2, new_df], ignore_index=True)
+
+
+#     df2 = df2[df2.total != 0]
+#     print(df2)
+#     # Salvar o DataFrame em um arquivo Excel
+#     writer = pd.ExcelWriter('dados.xlsx', engine='xlsxwriter')
+#     df2.to_excel(writer, sheet_name='Sheet1', index=False)
+#     writer.close()
+#     return send_file('dados.xlsx', as_attachment=True)
+
 
