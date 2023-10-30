@@ -17,7 +17,7 @@ import pandas as pd
 
 def readCsv(filename):
     
-    df = pd.read_csv(filename,sep=';')
+    df = pd.read_csv(filename,sep=',')
     df.fillna(0, inplace=True)
     
     return df
@@ -191,3 +191,13 @@ if __name__ == '__main__':
 #     return send_file('dados.xlsx', as_attachment=True)
 
 
+@app.route("/readspreadsheet", methods=['POST', 'GET'])
+def readspreadsheet():
+
+    json_file = r"C:\Users\flavi\Downloads\orbit-web-apps-hub-970cecfcb810.json"
+    worksheet = 'Página1'
+    sheet_name = 'teste'
+    spreadsheet_url = 'https://docs.google.com/spreadsheets/d/1ofmrhncmRWHQDrgzux7TQK5kkvWPY2lG8p8amOS5YCQ/edit#gid=0'
+    spreadsheet_key = '1ofmrhncmRWHQDrgzux7TQK5kkvWPY2lG8p8amOS5YCQ'
+    
+    return jsonify("Hello spreadsheet")
