@@ -9,6 +9,10 @@
 
 O Graph Data Generator é um web app que recebe uma tabela de dados no formato .xlsx do usuário e, em seguida, processa as informações gerando um outro arquivo .xlsx contendo uma tabela com os Vértices, Rótulos e Pesos de um grafo. Essa documentação é referente ao back end, desenvolvido na linguagem Python e com o uso do Framework Flask.
 
+Link do projeto no Google Cloud Run:
+```
+https://console.cloud.google.com/run/detail/us-central1/graph-generator-backend-v2/metrics?project=orbit-web-apps-hub
+```
 
 <br>
 
@@ -90,11 +94,6 @@ PS ...\orbit-graph-generator-backend>python -m venv venv
 ## Deploy no Google Cloud Plataform
 ---
 O Orbit Export Comments Backend é executado no Google Cloud Run por meio de um container Docker.
-
-Link do projeto no Google Cloud Run:
-```
-https://console.cloud.google.com/run/detail/us-central1/graph-generator-backend-v2/metrics?project=orbit-web-apps-hub
-```
 
 Para fazer o deploy no GCP, você deve sergir os seguintes passos:
 1.   Criar um projeto no GCP e ativar as API's necessárias. 
