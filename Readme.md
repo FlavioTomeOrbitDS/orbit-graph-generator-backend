@@ -89,7 +89,14 @@ PS ...\orbit-graph-generator-backend>python -m venv venv
 
 ## Deploy no Google Cloud Plataform
 ---
-O Orbit Export Comments Backend é executado no Google Cloud Run por meio de um container Docker. Para fazer o deploy no GCP, você deve sergir os seguintes passos:
+O Orbit Export Comments Backend é executado no Google Cloud Run por meio de um container Docker.
+
+Link do projeto no Google Cloud Run:
+```
+https://console.cloud.google.com/run/detail/us-central1/graph-generator-backend-v2/metrics?project=orbit-web-apps-hub
+```
+
+Para fazer o deploy no GCP, você deve sergir os seguintes passos:
 1.   Criar um projeto no GCP e ativar as API's necessárias. 
 2.   Ativar a Cloud Run API.
 3.   Criar uma imagem de container Docker do projeto.
